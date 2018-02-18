@@ -1,0 +1,63 @@
+{
+    "variables": {
+        "aws_region": null,
+        "aws_ami_name": "gitlab_runner-{{isotime \"02Jan2006\"}}"
+    },
+
+    "builders": [{
+        "type": "amazon-ebs",
+        "region": "{{user `aws_region`}}",
+        "instance_type": "t2.micro",
+        "ssh_username": "ubuntu",
+        "ami_name": "{{user `aws_ami_name`}}",
+        "ami_description": "Gitlab Runner with docker/kubectl",
+        "associate_public_ip_address": "true",
+        "encrypt_boot": "true",
+        "source_ami_filter": {
+            "filters": {
+              "virtualization-type": "hvm",
+              "name": "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*",
+              "root-device-type": "ebs"
+            },
+            "owners": ["099720109477"],
+            "most_recent": true
+        },
+        "launch_block_device_mappings": [
+          {
+            "device_name": "/dev/sda1",
+            "volume_size": 30,
+            "volume_type": "gp2",
+            "delete_on_termination": true
+          }
+        ],
+        "tags": {
+          "Role": "CI",
+          "Name": "Gitlab Runner"
+        }
+    }],
+
+    "provisioners": [
+        {
+          "type": "file",
+          "source": "scripts/init/runner-init.sh",
+          "destination": "/tmp/runner-init.sh"
+        },
+        {
+            "type": "shell",
+            "scripts": [
+                "scripts/base/update-system.sh",
+                "scripts/base/install-firewall.sh",
+                "scripts/builder/install-jq.sh",
+                "scripts/builder/install-gitlab-runner.sh",
+                "scripts/builder/install-aws-cli.sh",
+                "scripts/builder/install-docker.sh",
+                "scripts/builder/install-kubectl.sh",
+                "scripts/builder/docker-cleanup-jobs.sh",
+                "scripts/builder/setup-runner-init-script.sh"
+            ],
+            "environment_vars": [
+                "AWS_REGION={{user `aws_region`}}"
+            ]
+        }
+    ]
+}
